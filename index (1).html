@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock des livres</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, exact, a school storeroom ledger that a manager reads from abroad.
+   IDEA: the stock register on the shelf — every line one book title, every exit signed to a student.
+   PICTURE: the live stock table with per-level "kits available" at the top of the first screen.
+   COLOUR and TYPE: deep teal band, white panels, coral for shortages; Archivo throughout.
+   LAYOUT: band with title and tabs, KPI row, then the working table of the active tab. */
+:root{color-scheme:light dark;
+--bg:light-dark(#f4f6f6,#0c1416);--panel:light-dark(#ffffff,#132024);--ink:light-dark(#14201f,#e6eeee);
+--mute:light-dark(#5b6b6b,#93a5a5);--line:light-dark(#dde4e4,#22343a);--band:light-dark(#0f4c5c,#0a2f38);
+--bandink:#eef7f7;--acc:#e4572e;--accbg:light-dark(#fdebe5,#3a1d15);--ok:light-dark(#0f6b5c,#5fd0b8);
+--okbg:light-dark(#e3f3ef,#123630);--warn:light-dark(#9a5b00,#f0b45a);--warnbg:light-dark(#fff3dc,#3a2a10)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip}
+header{background:var(--band);color:var(--bandink);padding:22px max(5vw,16px) 0}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.05;margin:0 0 4px;font-weight:700;text-wrap:balance}
+.sub{margin:0 0 16px;opacity:.85;font-size:15px}
+nav{display:flex;gap:4px;overflow-x:auto}
+nav button{flex:none;background:transparent;color:var(--bandink);border:0;border-radius:10px 10px 0 0;padding:12px 16px;font:600 15px Archivo,sans-serif;cursor:pointer;min-height:44px;opacity:.8}
+nav button[aria-selected=true]{background:var(--bg);color:var(--ink);opacity:1}
+main{padding:20px max(5vw,16px) 48px;max-width:1240px;margin:0 auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi b{display:block;font-size:clamp(26px,3.5vw,34px);line-height:1.1}
+.kpi span{color:var(--mute);font-size:14px}
+.kpi.alert b{color:var(--acc)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:20px}
+h2{font-size:20px;margin:0 0 4px}
+.hint{color:var(--mute);font-size:14px;margin:0 0 14px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{text-align:left;font-weight:600;color:var(--mute);font-size:13px;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:13px;font-weight:600;white-space:nowrap}
+.p-ok{background:var(--okbg);color:var(--ok)}.p-bas{background:var(--warnbg);color:var(--warn)}
+.p-rupture{background:var(--accbg);color:var(--acc)}.p-attente{background:var(--line);color:var(--ink)}
+form.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end}
+label{display:grid;gap:4px;font-size:14px;font-weight:500}
+input,select{font:16px Archivo,sans-serif;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-height:44px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button.b{font:600 15px Archivo,sans-serif;border:0;border-radius:10px;padding:10px 16px;min-height:44px;cursor:pointer;background:var(--band);color:var(--bandink);white-space:nowrap}
+button.s{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.d{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button.sm{padding:6px 12px;min-height:36px;font-size:14px}
+.acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.row input,.row select{width:auto;flex:1 1 180px}
+.empty{padding:28px;text-align:center;color:var(--mute)}
+.qty{width:90px;text-align:right}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:10px;font-weight:500;max-width:min(92vw,560px);opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+#status{margin:0 0 14px;padding:10px 14px;border-radius:10px;background:var(--warnbg);color:var(--warn);font-size:14px}
+#status:empty{display:none}
+.ro .w{display:none!important}
+.levels{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.lv{border:1px solid var(--line);border-radius:12px;padding:14px}
+.lv h3{margin:0 0 6px;font-size:18px}
+.lv p{margin:2px 0;font-size:14px;color:var(--mute)}
+.lv strong{color:var(--ink)}
+.scroll{overflow-x:auto}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.who{display:flex;align-items:center;gap:10px;font-size:14px}
+.who .b.s{color:var(--bandink);border-color:rgba(255,255,255,.4)}
+#login{padding:40px max(5vw,16px)}
+#fLogin{max-width:420px;margin:0 auto;display:grid;gap:14px}
+.err{color:var(--acc);margin:0;min-height:1.2em;font-size:14px}
+.nivbox{grid-column:1/-1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0}
+.nivbox legend{font-size:14px;font-weight:500;padding:0 4px}
+#nivChecks{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.chk{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:6px 14px;min-height:40px;cursor:pointer;font-weight:600}
+.chk input{width:18px;height:18px;min-height:0;margin:0;accent-color:var(--band)}
+.chk:has(input:checked){background:var(--okbg);border-color:var(--ok);color:var(--ok)}
+.addniv{display:flex;gap:8px;max-width:360px}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}.acts{justify-content:flex-start}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header>
+  <div class="top"><h1>Stock des livres</h1><div class="who" id="who" hidden><span id="whoName"></span><button class="b s sm" id="logout" type="button">Déconnexion</button></div></div>
+  <p class="sub">Chaque livre qui sort est lié à un élève inscrit. Stock, besoins et commandes à jour en temps réel.</p>
+  <nav role="tablist" id="nav" hidden>
+    <button data-tab="apercu" aria-selected="true">Aperçu</button>
+    <button data-tab="eleves">Élèves</button>
+    <button data-tab="livres">Livres</button>
+    <button data-tab="commandes">Commandes</button>
+    <button data-tab="historique">Historique</button>
+  </nav>
+</header>
+<div id="login" hidden>
+  <form id="fLogin" class="card">
+    <h2>Connexion</h2>
+    <p class="hint">Utilisez l'adresse e-mail et le mot de passe reçus de l'administrateur.</p>
+    <label>E-mail<input name="email" type="email" required autocomplete="username"></label>
+    <label>Mot de passe<input name="mdp" type="password" required autocomplete="current-password"></label>
+    <p id="loginErr" class="err" role="alert"></p>
+    <button class="b" type="submit">Se connecter</button>
+  </form>
+</div>
+<main id="app" hidden>
+<p id="status"></p>
+
+<section id="v-apercu">
+  <div class="kpis" id="kpis"></div>
+  <div class="card">
+    <h2>Par niveau</h2>
+    <p class="hint">« Kits disponibles » = nombre de nouveaux élèves qu'on peut encore équiper avec le stock actuel.</p>
+    <div class="levels" id="levels"></div>
+  </div>
+  <div class="card">
+    <h2>Stock par livre</h2>
+    <p class="hint">À commander = élèves à servir + stock de sécurité − stock − déjà commandé.</p>
+    <div class="row"><select id="fNivStock" aria-label="Choisir un niveau"></select></div>
+    <div id="stockTable"></div>
+  </div>
+</section>
+
+<section id="v-eleves" hidden>
+  <div class="card w">
+    <h2>Nouvel élève</h2>
+    <p class="hint">À l'inscription, les livres du niveau sortent automatiquement du stock (1 exemplaire de chaque titre).</p>
+    <form class="grid" id="fEleve">
+      <label>Nom de l'élève<input name="nom" required autocomplete="off"></label>
+      <label>Niveau<select name="niveau" id="selNiveau" required></select></label>
+      <label>Statut<select name="statut">
+        <option value="inscrit">Inscrit : remettre les livres</option>
+        <option value="prevu">Prévu : pas encore inscrit</option>
+      </select></label>
+      <button class="b" type="submit">Enregistrer</button>
+    </form>
+  </div>
+  <div class="card">
+    <div class="row">
+      <input id="qEleve" placeholder="Rechercher un élève" aria-label="Rechercher un élève">
+      <select id="fNiv" aria-label="Filtrer par niveau"></select>
+      <select id="fStat" aria-label="Filtrer par statut">
+        <option value="">Tous les statuts</option><option value="attente">En attente de livres</option>
+        <option value="inscrit">Livres remis</option><option value="prevu">Prévus</option><option value="parti">Partis</option>
+      </select>
+    </div>
+    <div id="elevesTable"></div>
+  </div>
+</section>
+
+<section id="v-livres" hidden>
+  <div class="card w">
+    <h2 id="livreTitle">Ajouter un livre</h2>
+    <p class="hint">Cochez le ou les niveaux qui utilisent ce livre.</p>
+    <form class="grid" id="fLivre">
+      <input type="hidden" name="id">
+      <label>Titre<input name="titre" required autocomplete="off"></label>
+      <fieldset class="nivbox"><legend>Niveau(x)</legend><div id="nivChecks"></div>
+        <div class="addniv"><input id="nivAutre" placeholder="Autre niveau" aria-label="Ajouter un autre niveau" autocomplete="off"><button class="b s sm" type="button" id="nivAdd">Ajouter</button></div></fieldset>
+      <label>ISBN<input name="isbn" autocomplete="off"></label>
+      <label>Fournisseur<input name="fournisseur" list="dlFour" autocomplete="off"></label>
+      <label>Délai fournisseur (jours)<input name="delai" type="number" min="0" value="30"></label>
+      <label>Stock de sécurité<input name="securite" type="number" min="0" value="5"></label>
+      <label id="lInit">Stock initial compté<input name="initial" type="number" min="0" value="0"></label>
+      <div class="acts"><button class="b s" type="button" id="cancelLivre" hidden>Annuler</button><button class="b" type="submit">Enregistrer</button></div>
+    </form>
+    <datalist id="dlFour"></datalist>
+  </div>
+  <div class="card">
+    <h2>Catalogue et comptage</h2>
+    <p class="hint">Après un comptage physique, saisissez la quantité réelle : l'écart est enregistré comme correction.</p>
+    <div id="livresTable"></div>
+  </div>
+</section>
+
+<section id="v-commandes" hidden>
+  <div class="card">
+    <h2>Propositions de commande</h2>
+    <p class="hint">Calculées à partir des élèves en attente et prévus. Ajustez les quantités avant de valider.</p>
+    <div id="sugg"></div>
+  </div>
+  <div class="card">
+    <h2>Commandes en cours</h2>
+    <p class="hint">À la livraison, saisissez la quantité réellement reçue.</p>
+    <div id="enCours"></div>
+  </div>
+  <div class="card w">
+    <h2>Commande manuelle</h2>
+    <form class="grid" id="fCmd">
+      <label>Livre<select name="livreId" id="selLivreCmd" required></select></label>
+      <label>Quantité<input name="qte" type="number" min="1" required></label>
+      <button class="b" type="submit">Ajouter</button>
+    </form>
+  </div>
+</section>
+
+<section id="v-historique" hidden>
+  <div class="card">
+    <h2>Historique des mouvements</h2>
+    <p class="hint">Toutes les entrées, sorties, retours et corrections, avec la personne qui les a saisis.</p>
+    <div class="row"><select id="fType" aria-label="Filtrer par type"><option value="">Tous les types</option><option value="sortie">Sorties</option><option value="entree">Entrées</option><option value="retour">Retours</option><option value="correction">Corrections</option></select></div>
+    <div id="histTable"></div>
+  </div>
+</section>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// Connexion à Supabase (clé publishable : peut être publique ; ne jamais mettre une clé sb_secret_ ici)
+window.STOCK_CONFIG = {
+  SUPABASE_URL: "https://lmctsgrjcomdrytdifzq.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_GcnDwSEu6hWyoVmbh2vJJA_qXnfFN4T"
+};
+</script>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const S={livres:[],eleves:[],commandes:[],mouvements:[],loaded:new Set(),canWrite:true,isAdmin:false};
+let db=null,sb=null,uid=null,rq=0,toastT=0;S.profils={};S.isOwner=false;
+const today=()=>new Date().toISOString().slice(0,10);
+const fmtD=d=>{if(!d)return'';const [y,m,j]=String(d).split('-');return j?`${j}.${m}.${y}`:esc(d)};
+const nivs=l=>String(l.niveau||'').split(',').map(s=>s.trim()).filter(Boolean);
+const kitFor=n=>S.livres.filter(l=>nivs(l).includes(n));
+const livre=id=>S.livres.find(l=>l.id===id);
+const ETAT={ok:'Suffisant',bas:'Stock bas',rupture:'Manque',attente:'Commande en cours'};
+const TYPE={sortie:'Sortie',entree:'Entrée',retour:'Retour',correction:'Correction'};
+
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),3500)}
+async function run(fn){try{await fn()}catch(e){const c=e&&e.code;if(c==='invalid_argument'&&!S.isAdmin){S.canWrite=false;document.body.classList.add('ro')}toast(c==='quota_exceeded'?'Base de données pleine : supprimez d\'anciennes données.':'Enregistrement impossible. Réessayez.')}}
+
+/* ---------- calculs ---------- */
+function stockMap(){const m={};for(const l of S.livres)m[l.id]=0;
+  for(const mv of S.mouvements){const sg=mv.type==='sortie'?-1:1;for(const li of mv.lignes||[]){m[li.livreId]=(m[li.livreId]||0)+sg*Number(li.qte||0)}}return m}
+const enAttente=e=>e.statut==='prevu'||(e.statut==='inscrit'&&!e.livresRemis);
+function analyse(){
+  const st=stockMap(),pend={},enc={},conso={},since=Date.now()-30*864e5;
+  for(const e of S.eleves)if(enAttente(e))pend[e.niveau]=(pend[e.niveau]||0)+1;
+  for(const c of S.commandes)if(c.statut==='en_cours')enc[c.livreId]=(enc[c.livreId]||0)+Number(c.qte||0);
+  for(const mv of S.mouvements)if(mv.type==='sortie'&&Number(mv.ts||0)>=since)for(const li of mv.lignes||[])conso[li.livreId]=(conso[li.livreId]||0)+Number(li.qte||0);
+  return S.livres.map(l=>{const stock=st[l.id]||0,besoin=nivs(l).reduce((a,n)=>a+(pend[n]||0),0),cours=enc[l.id]||0,secu=Number(l.securite||0);
+    const aCmd=Math.max(0,besoin+secu-stock-cours);let etat=stock<besoin?'rupture':stock-besoin<secu?'bas':'ok';if(etat!=='ok'&&aCmd===0)etat='attente';
+    return{...l,stock,besoin,cours,secu,aCmd,conso30:conso[l.id]||0,etat}}).sort((a,b)=>String(a.niveau).localeCompare(b.niveau)||String(a.titre).localeCompare(b.titre))}
+function levels(){const s=new Set();S.livres.forEach(l=>nivs(l).forEach(n=>s.add(n)));return[...s].sort()}
+
+/* ---------- rendu ---------- */
+function render(){cancelAnimationFrame(rq);rq=requestAnimationFrame(draw)}
+function draw(){
+  const A=analyse(),st=Object.fromEntries(A.map(a=>[a.id,a])),lv=levels();
+  const ins=S.eleves.filter(e=>e.statut==='inscrit'),mois=today().slice(0,7);
+  const nouveaux=ins.filter(e=>String(e.dateRemise||e.date||'').startsWith(mois)).length;
+  const att=S.eleves.filter(e=>e.statut==='inscrit'&&!e.livresRemis).length,prev=S.eleves.filter(e=>e.statut==='prevu').length;
+  const aCmd=A.filter(a=>a.aCmd>0).length;
+  $('#kpis').innerHTML=[[ins.length,'élèves inscrits'],[nouveaux,'nouveaux ce mois'],[att,'élèves sans livres',att>0],[prev,'élèves prévus'],[aCmd,'titres à commander',aCmd>0]]
+    .map(([v,t,a])=>`<div class="kpi${a?' alert':''}"><b>${v}</b><span>${t}</span></div>`).join('');
+
+  $('#levels').innerHTML=lv.length?lv.map(n=>{const kit=kitFor(n);const kits=kit.length?Math.min(...kit.map(l=>st[l.id]?.stock||0)):0;
+    const i=ins.filter(e=>e.niveau===n).length,w=S.eleves.filter(e=>e.niveau===n&&enAttente(e)).length;
+    return`<div class="lv"><h3>${esc(n)}</h3><p><strong>${Math.max(0,kits)}</strong> kits disponibles (${kit.length} titre${kit.length>1?'s':''})</p><p><strong>${i}</strong> inscrits · <strong>${w}</strong> à servir</p>${kits<w?`<p><span class="pill p-rupture">Il manque ${w-Math.max(0,kits)} kit${w-kits>1?'s':''}</span></p>`:''}</div>`}).join('')
+    :'<div class="empty">Ajoutez vos livres dans l\'onglet « Livres » pour commencer.</div>';
+
+  const fsn=$('#fNivStock'),cs=fsn.value;fsn.innerHTML='<option value="">Tous les niveaux</option>'+lv.map(n=>`<option>${esc(n)}</option>`).join('');fsn.value=lv.includes(cs)?cs:'';
+  const AS=fsn.value?A.filter(a=>nivs(a).includes(fsn.value)):A;
+  $('#stockTable').innerHTML=AS.length?`<table class="stack"><thead><tr><th>Livre</th><th>Niveau</th><th class="n">Stock</th><th class="n">À servir</th><th class="n">Commandé</th><th class="n">Sorties 30 j</th><th class="n">À commander</th><th>État</th></tr></thead><tbody>${
+    AS.map(a=>`<tr><td><strong>${esc(a.titre)}</strong></td><td>${esc(a.niveau)}</td><td class="n">${a.stock}</td><td class="n">${a.besoin}</td><td class="n">${a.cours}</td><td class="n">${a.conso30}</td><td class="n"><strong>${a.aCmd||'–'}</strong></td><td><span class="pill p-${a.etat}">${ETAT[a.etat]}</span></td></tr>`).join('')}</tbody></table>`:'<div class="empty">Aucun livre enregistré.</div>';
+
+  /* élèves */
+  const lvE=[...new Set([...STD,...lv,...S.eleves.map(e=>e.niveau).filter(Boolean)])].sort();
+  const sel=$('#selNiveau'),cur=sel.value;sel.innerHTML='<option value="">Choisir le niveau…</option>'+lvE.map(n=>`<option value="${esc(n)}">${esc(n)}${lv.includes(n)?'':' (aucun livre défini)'}</option>`).join('');sel.value=lvE.includes(cur)?cur:'';
+  const fn=$('#fNiv'),cf=fn.value;fn.innerHTML='<option value="">Tous les niveaux</option>'+lvE.map(n=>`<option>${esc(n)}</option>`).join('');fn.value=lvE.includes(cf)?cf:'';
+  const q=$('#qEleve').value.trim().toLowerCase(),fs=$('#fStat').value;
+  const E=S.eleves.filter(e=>(!q||String(e.nom).toLowerCase().includes(q))&&(!fn.value||e.niveau===fn.value)&&(!fs||(fs==='attente'?e.statut==='inscrit'&&!e.livresRemis:fs==='inscrit'?e.statut==='inscrit'&&e.livresRemis:e.statut===fs))).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const lab=e=>e.statut==='prevu'?'<span class="pill p-attente">Prévu</span>':e.statut==='parti'?'<span class="pill p-attente">Parti</span>':e.livresRemis?'<span class="pill p-ok">Livres remis</span>':'<span class="pill p-rupture">Sans livres</span>';
+  const act=e=>{const b=[];if(e.statut==='prevu')b.push(`<button class="b sm" data-act="confirmer" data-id="${esc(e.id)}">Inscrire et remettre</button>`);
+    if(e.statut==='inscrit'&&!e.livresRemis)b.push(`<button class="b sm" data-act="remettre" data-id="${esc(e.id)}">Remettre les livres</button>`);
+    if(e.statut==='inscrit'&&e.livresRemis)b.push(`<button class="b s sm" data-act="retour" data-id="${esc(e.id)}" data-confirm="Confirmer le retour ?">Livres rendus</button>`);
+    if(e.statut!=='inscrit'||!e.livresRemis)b.push(`<button class="b d sm" data-act="supEleve" data-id="${esc(e.id)}" data-confirm="Confirmer ?">Supprimer</button>`);
+    return`<div class="acts w">${b.join('')}</div>`};
+  $('#elevesTable').innerHTML=E.length?`<table class="stack"><thead><tr><th>Élève</th><th>Niveau</th><th>Date</th><th>Statut</th><th></th></tr></thead><tbody>${
+    E.map(e=>`<tr><td><strong>${esc(e.nom)}</strong></td><td>${esc(e.niveau)}</td><td>${fmtD(e.dateRemise||e.date)}</td><td>${lab(e)}</td><td>${act(e)}</td></tr>`).join('')}</tbody></table>`
+    :`<div class="empty">${S.eleves.length?'Aucun élève ne correspond au filtre.':'Aucun élève enregistré pour l\'instant.'}</div>`;
+
+  /* livres */
+  drawChecks();
+  $('#dlFour').innerHTML=[...new Set(S.livres.map(l=>l.fournisseur).filter(Boolean))].map(f=>`<option value="${esc(f)}">`).join('');
+  $('#livresTable').innerHTML=A.length?`<table class="stack"><thead><tr><th>Titre</th><th>Niveau</th><th>Fournisseur</th><th class="n">Délai</th><th class="n">Sécurité</th><th class="n">Stock</th><th class="w">Comptage réel</th><th></th></tr></thead><tbody>${
+    A.map(a=>`<tr><td><strong>${esc(a.titre)}</strong>${a.isbn?`<br><small>${esc(a.isbn)}</small>`:''}</td><td>${esc(a.niveau)}</td><td>${esc(a.fournisseur)}</td><td class="n">${Number(a.delai||0)} j</td><td class="n">${a.secu}</td><td class="n"><strong>${a.stock}</strong></td>
+    <td class="w"><div class="acts" style="justify-content:flex-start"><input class="qty" type="number" min="0" id="cpt-${esc(a.id)}" aria-label="Quantité comptée"><button class="b s sm" data-act="compter" data-id="${esc(a.id)}">Corriger</button></div></td>
+    <td><div class="acts w"><button class="b s sm" data-act="editLivre" data-id="${esc(a.id)}">Modifier</button>${S.isOwner?`<button class="b d sm" data-act="supLivre" data-id="${esc(a.id)}" data-confirm="Confirmer ?">Supprimer</button>`:''}</div></td></tr>`).join('')}</tbody></table>`:'<div class="empty">Aucun livre. Ajoutez votre premier titre ci-dessus.</div>';
+
+  /* commandes */
+  const sg=A.filter(a=>a.aCmd>0),byF={};sg.forEach(a=>(byF[a.fournisseur||'Sans fournisseur']??=[]).push(a));
+  $('#sugg').innerHTML=sg.length?Object.entries(byF).map(([f,L],i)=>`<div style="margin-bottom:18px"><div class="row" style="justify-content:space-between"><h3 style="margin:0;font-size:17px">${esc(f)}</h3><div class="acts"><button class="b s sm" data-act="copier" data-f="${i}">Copier la liste</button><button class="b sm w" data-act="commander" data-f="${i}">Créer les commandes</button></div></div>
+    <table class="stack" data-four="${i}"><thead><tr><th>Livre</th><th class="n">Stock</th><th class="n">À servir</th><th class="n">Délai</th><th class="n">Quantité</th></tr></thead><tbody>${
+    L.map(a=>`<tr data-livre="${esc(a.id)}"><td>${esc(a.titre)} <small>(${esc(a.niveau)})</small></td><td class="n">${a.stock}</td><td class="n">${a.besoin}</td><td class="n">${Number(a.delai||0)} j</td><td class="n"><input class="qty" type="number" min="0" value="${a.aCmd}" aria-label="Quantité à commander"></td></tr>`).join('')}</tbody></table></div>`).join('')
+    :'<div class="empty">Rien à commander : le stock couvre tous les élèves à servir.</div>';
+  S._four=Object.entries(byF);
+  const C=S.commandes.filter(c=>c.statut==='en_cours').sort((a,b)=>(a.ts||0)-(b.ts||0));
+  $('#enCours').innerHTML=C.length?`<table class="stack"><thead><tr><th>Livre</th><th>Fournisseur</th><th>Commandé le</th><th class="n">Quantité</th><th class="w">Reçu</th><th></th></tr></thead><tbody>${
+    C.map(c=>{const l=livre(c.livreId);const late=l&&Number(l.delai)>0&&Date.now()-Number(c.ts||0)>Number(l.delai)*864e5;
+    return`<tr><td>${esc(l?.titre||'Livre supprimé')}${late?' <span class="pill p-rupture">En retard</span>':''}</td><td>${esc(c.fournisseur||l?.fournisseur)}</td><td>${fmtD(c.date)}</td><td class="n">${Number(c.qte)}</td>
+    <td class="w"><input class="qty" type="number" min="0" value="${Number(c.qte)}" id="rec-${esc(c.id)}" aria-label="Quantité reçue"></td>
+    <td><div class="acts w"><button class="b sm" data-act="recevoir" data-id="${esc(c.id)}">Réceptionner</button><button class="b d sm" data-act="supCmd" data-id="${esc(c.id)}" data-confirm="Confirmer ?">Annuler</button></div></td></tr>`}).join('')}</tbody></table>`:'<div class="empty">Aucune commande en cours.</div>';
+  const slc=$('#selLivreCmd'),cl=slc.value;slc.innerHTML=A.map(a=>`<option value="${esc(a.id)}">${esc(a.titre)} (${esc(a.niveau)})</option>`).join('');if(cl)slc.value=cl;
+
+  /* historique */
+  const ft=$('#fType').value,el=Object.fromEntries(S.eleves.map(e=>[e.id,e.nom]));
+  const H=S.mouvements.filter(m=>!ft||m.type===ft).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,300);
+  $('#histTable').innerHTML=H.length?`<table class="stack"><thead><tr><th>Date</th><th>Type</th><th>Détail</th><th>Note</th><th>Saisi par</th><th></th></tr></thead><tbody>${
+    H.map(m=>`<tr><td>${fmtD(m.date)}</td><td><span class="pill ${m.type==='sortie'?'p-bas':m.type==='correction'?'p-attente':'p-ok'}">${TYPE[m.type]||esc(m.type)}</span></td>
+    <td>${(m.lignes||[]).map(li=>`${m.type==='correction'&&li.qte>0?'+':''}${Number(li.qte)} × ${esc(livre(li.livreId)?.titre||'?')}`).join('<br>')}</td>
+    <td>${esc(m.note||'')}${m.eleveId&&el[m.eleveId]&&!String(m.note||'').includes(el[m.eleveId])?' · '+esc(el[m.eleveId]):''}</td><td><span data-uid="${esc(m.auteur||'')}">–</span></td>
+    <td>${S.isOwner?`<button class="b d sm" data-act="supMvt" data-id="${esc(m.id)}" data-confirm="Confirmer ?">Annuler</button>`:''}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">Aucun mouvement enregistré.</div>';
+  names();
+}
+const STD=['A1','A2','B1','B2','C1','C2'],extra=new Set();
+const checked=()=>[...document.querySelectorAll('#nivChecks input:checked')].map(i=>i.value);
+function drawChecks(sel){const keep=sel||checked();const all=[...new Set([...STD,...levels(),...extra,...keep])].sort();
+  $('#nivChecks').innerHTML=all.map(n=>`<label class="chk"><input type="checkbox" value="${esc(n)}"${keep.includes(n)?' checked':''}>${esc(n)}</label>`).join('')}
+function names(){document.querySelectorAll('[data-uid]').forEach(x=>{x.textContent=S.profils[x.dataset.uid]?.nom||'–'})}
+
+/* ---------- actions ---------- */
+const snake=k=>k.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()),camel=k=>k.replace(/_([a-z])/g,(_,c)=>c.toUpperCase());
+const toRow=o=>{const r={};for(const[k,v]of Object.entries(o))if(k!=='ts'&&k!=='auteur')r[snake(k)]=v;return r};
+const fromRow=r=>{const o={};for(const[k,v]of Object.entries(r))o[camel(k)]=v;o.ts=Date.parse(r.created_at)||0;return o};
+const chk=({data,error})=>{if(error)throw{code:error.code==='42501'?'invalid_argument':'unavailable',message:error.message};return data};
+const col=n=>({add:async d=>{const r=chk(await sb.from(n).insert(toRow(d)).select('id').single());load(n);return r},
+  doc:id=>({update:async d=>{chk(await sb.from(n).update(toRow(d)).eq('id',id));load(n)},delete:async()=>{chk(await sb.from(n).delete().eq('id',id));load(n)}})});
+async function fetchAll(n){let out=[],from=0;for(;;){const d=chk(await sb.from(n).select('*').order('created_at').range(from,from+999));out=out.concat(d);if(d.length<1000)break;from+=1000}return out}
+const pend={};
+function load(n){clearTimeout(pend[n]);pend[n]=setTimeout(async()=>{try{const rows=await fetchAll(n);if(n==='profils'){S.profils=Object.fromEntries(rows.map(r=>[r.id,r]))}else S[n]=rows.map(fromRow);S.loaded.add(n);
+  if(S.loaded.size>=5)$('#status').textContent=S.canWrite?'':'Accès en lecture seule.';render()}catch(e){$('#status').textContent='Impossible de charger les données ('+n+').'}},150)}
+async function mouvement(type,lignes,extra={}){const ref=await col('mouvements').add({type,lignes,date:today(),ts:Date.now(),auteur:uid||'',...extra});return ref.id}
+function manque(kit){const st=stockMap();return kit.filter(l=>(st[l.id]||0)<1)}
+async function remettre(e){
+  const kit=kitFor(e.niveau);if(!kit.length){toast('Aucun livre défini pour le niveau '+e.niveau+'.');return false}
+  const m=manque(kit);if(m.length){toast('Stock insuffisant : '+m.map(l=>l.titre).join(', ')+'. L\'élève reste « sans livres ».');return false}
+  const id=await mouvement('sortie',kit.map(l=>({livreId:l.id,qte:1})),{eleveId:e.id,note:'Livres remis à '+e.nom});
+  await col('eleves').doc(e.id).update({statut:'inscrit',livresRemis:true,dateRemise:today(),mvtId:id});toast('Livres remis à '+e.nom+'.');return true}
+
+const ACT={
+  remettre:id=>{const e=S.eleves.find(x=>x.id===id);if(e)return remettre(e)},
+  confirmer:async id=>{const e=S.eleves.find(x=>x.id===id);if(!e)return;if(!await remettre(e))await col('eleves').doc(id).update({statut:'inscrit',livresRemis:false,date:today()})},
+  retour:async id=>{const e=S.eleves.find(x=>x.id===id);if(!e)return;const mv=S.mouvements.find(m=>m.id===e.mvtId);
+    const lignes=mv?mv.lignes:kitFor(e.niveau).map(l=>({livreId:l.id,qte:1}));await mouvement('retour',lignes,{eleveId:id,note:'Livres rendus par '+e.nom});
+    await col('eleves').doc(id).update({statut:'parti',livresRemis:false});toast('Retour enregistré.')},
+  supEleve:async id=>{await col('eleves').doc(id).delete();toast('Élève supprimé.')},
+  editLivre:id=>{const l=livre(id);if(!l)return;const f=$('#fLivre');for(const k of['id','titre','isbn','fournisseur','delai','securite'])f.elements[k].value=l[k]??'';drawChecks(nivs(l));
+    $('#lInit').hidden=true;$('#cancelLivre').hidden=false;$('#livreTitle').textContent='Modifier le livre';f.scrollIntoView({behavior:'smooth',block:'center'})},
+  supLivre:async id=>{await col('livres').doc(id).delete();toast('Livre supprimé.')},
+  compter:async id=>{const v=$('#cpt-'+CSS.escape(id)).value;if(v==='')return toast('Saisissez la quantité comptée.');const diff=Number(v)-(stockMap()[id]||0);
+    if(!diff)return toast('Le stock est déjà juste.');await mouvement('correction',[{livreId:id,qte:diff}],{note:'Comptage : '+v+' exemplaires'});toast('Correction de '+(diff>0?'+':'')+diff+' enregistrée.')},
+  commander:async(_,b)=>{const t=document.querySelector(`table[data-four="${b.dataset.f}"]`),f=S._four[b.dataset.f][0];let n=0;
+    for(const tr of t.querySelectorAll('tr[data-livre]')){const q=Number(tr.querySelector('input').value);if(q>0){await col('commandes').add({livreId:tr.dataset.livre,qte:q,fournisseur:f==='Sans fournisseur'?'':f,date:today(),ts:Date.now(),statut:'en_cours',auteur:uid||''});n++}}
+    toast(n?n+' commande(s) créée(s).':'Aucune quantité saisie.')},
+  copier:async(_,b)=>{const t=document.querySelector(`table[data-four="${b.dataset.f}"]`),f=S._four[b.dataset.f][0];
+    const L=[...t.querySelectorAll('tr[data-livre]')].map(tr=>{const l=livre(tr.dataset.livre),q=Number(tr.querySelector('input').value);return q>0?`- ${q} x ${l.titre}${l.isbn?' (ISBN '+l.isbn+')':''}`:''}).filter(Boolean);
+    const txt=`Bonjour,\n\nNous souhaitons commander :\n${L.join('\n')}\n\nMerci de confirmer le délai de livraison.\n`;
+    try{await navigator.clipboard.writeText(txt);toast('Liste copiée pour '+f+'.')}catch(e){toast('Copie impossible dans ce navigateur.')}},
+  recevoir:async id=>{const c=S.commandes.find(x=>x.id===id);if(!c)return;const q=Number($('#rec-'+CSS.escape(id)).value);if(!(q>=0))return;
+    if(q>0)await mouvement('entree',[{livreId:c.livreId,qte:q}],{commandeId:id,note:'Livraison '+(c.fournisseur||'')+(q!==Number(c.qte)?` (commandé ${c.qte})`:'')});
+    await col('commandes').doc(id).update({statut:'recue',qteRecue:q,dateReception:today()});toast(q+' exemplaire(s) ajouté(s) au stock.')},
+  supCmd:async id=>{await col('commandes').doc(id).delete();toast('Commande annulée.')},
+  supMvt:async id=>{await col('mouvements').doc(id).delete();toast('Mouvement annulé.')}
+};
+document.addEventListener('click',ev=>{const b=ev.target.closest('[data-act]');if(!b||!db)return;
+  if(b.dataset.confirm&&!b.dataset.armed){b.dataset.armed='1';b.dataset.txt=b.textContent;b.textContent=b.dataset.confirm;setTimeout(()=>{if(b.isConnected){b.textContent=b.dataset.txt;delete b.dataset.armed}},4000);return}
+  b.disabled=true;run(()=>ACT[b.dataset.act](b.dataset.id,b)).finally(()=>{b.disabled=false})});
+
+$('#fEleve').addEventListener('submit',ev=>{ev.preventDefault();if(!db)return;const f=ev.target,nom=f.nom.value.trim(),niveau=f.niveau.value,statut=f.statut.value;if(!nom||!niveau)return;
+  run(async()=>{const ref=await col('eleves').add({nom,niveau,statut,livresRemis:false,date:today(),ts:Date.now(),auteur:uid||''});
+    if(statut==='inscrit')await remettre({id:ref.id,nom,niveau});else toast(nom+' ajouté comme élève prévu.');f.nom.value='';f.nom.focus()})});
+$('#nivAdd').addEventListener('click',()=>{const v=$('#nivAutre').value.trim().replace(/,/g,' ');if(!v)return;extra.add(v);drawChecks([...checked(),v]);$('#nivAutre').value=''});
+$('#nivAutre').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#nivAdd').click()}});
+function resetLivre(){const f=$('#fLivre');f.reset();f.elements.id.value='';drawChecks([]);$('#lInit').hidden=false;$('#cancelLivre').hidden=true;$('#livreTitle').textContent='Ajouter un livre'}
+$('#cancelLivre').addEventListener('click',resetLivre);
+$('#fLivre').addEventListener('submit',ev=>{ev.preventDefault();if(!db)return;const f=ev.target.elements;
+  const nv=checked();if(!nv.length)return toast('Choisissez au moins un niveau.');
+  const d={titre:f.titre.value.trim(),niveau:nv.join(', '),isbn:f.isbn.value.trim(),fournisseur:f.fournisseur.value.trim(),delai:Number(f.delai.value||0),securite:Number(f.securite.value||0)};
+  run(async()=>{if(f.id.value){await col('livres').doc(f.id.value).update(d);toast('Livre mis à jour.')}
+    else{const ref=await col('livres').add({...d,ts:Date.now()});const ini=Number(f.initial.value||0);if(ini>0)await mouvement('entree',[{livreId:ref.id,qte:ini}],{note:'Stock initial'});toast('Livre ajouté.')}resetLivre()})});
+$('#fCmd').addEventListener('submit',ev=>{ev.preventDefault();if(!db)return;const f=ev.target,l=livre(f.livreId.value),q=Number(f.qte.value);if(!l||!(q>0))return;
+  run(async()=>{await col('commandes').add({livreId:l.id,qte:q,fournisseur:l.fournisseur||'',date:today(),ts:Date.now(),statut:'en_cours',auteur:uid||''});f.qte.value='';toast('Commande ajoutée.')})});
+['#qEleve','#fNiv','#fStat','#fType','#fNivStock'].forEach(s=>$(s).addEventListener('input',render));
+
+/* ---------- onglets ---------- */
+const TABS=['apercu','eleves','livres','commandes','historique'];
+function show(t){if(!TABS.includes(t))t='apercu';for(const x of TABS)$('#v-'+x).hidden=x!==t;document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t))}
+document.querySelector('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(b){location.hash=b.dataset.tab;show(b.dataset.tab)}});
+addEventListener('hashchange',()=>show(location.hash.slice(1)));show(location.hash.slice(1));
+render();
+
+/* ---------- connexion et données ---------- */
+const TABLES=['livres','eleves','commandes','mouvements','profils'];
+let chan=null;
+async function demarrer(session){
+  uid=session.user.id;
+  const {data:p}=await sb.from('profils').select('*').eq('id',uid).maybeSingle();
+  if(!p){$('#loginErr').textContent='Ce compte n\'est pas encore activé. Contactez l\'administrateur.';await sb.auth.signOut();return}
+  S.isOwner=S.isAdmin=p.role==='admin';S.canWrite=p.role==='admin'||p.role==='equipe';document.body.classList.toggle('ro',!S.canWrite);
+  db=true;$('#login').hidden=true;$('#app').hidden=false;$('#nav').hidden=false;$('#who').hidden=false;$('#whoName').textContent=(p.nom||session.user.email)+(p.role==='admin'?' · admin':p.role==='lecture'?' · lecture':'');
+  $('#status').textContent='Chargement des données…';TABLES.forEach(load);
+  chan=sb.channel('stock').on('postgres_changes',{event:'*',schema:'public'},pl=>{if(TABLES.includes(pl.table))load(pl.table)}).subscribe();
+}
+function ecranConnexion(){db=null;$('#login').hidden=false;$('#app').hidden=true;$('#nav').hidden=true;$('#who').hidden=true;if(chan){sb.removeChannel(chan);chan=null}}
+$('#fLogin').addEventListener('submit',async ev=>{ev.preventDefault();const f=ev.target;$('#loginErr').textContent='';
+  const {data,error}=await sb.auth.signInWithPassword({email:f.email.value.trim(),password:f.mdp.value});
+  if(error){$('#loginErr').textContent='E-mail ou mot de passe incorrect.';return}f.mdp.value='';demarrer(data.session)});
+$('#logout').addEventListener('click',async()=>{await sb.auth.signOut();ecranConnexion()});
+(async()=>{
+  const C=window.STOCK_CONFIG||{};
+  if(!window.supabase){$('#login').hidden=false;$('#loginErr').textContent='La bibliothèque Supabase ne s\'est pas chargée. Vérifiez la connexion internet et rechargez la page.';return}
+  if(!C.SUPABASE_URL||C.SUPABASE_URL.includes('XXXX')){$('#login').hidden=false;$('#loginErr').textContent='Configuration manquante (adresse ou clé Supabase).';return}
+  sb=window.supabase.createClient(C.SUPABASE_URL,C.SUPABASE_ANON_KEY);
+  const {data:{session}}=await sb.auth.getSession();
+  if(session)demarrer(session);else ecranConnexion();
+})();
+}
+</script>
+</body>
+</html>
