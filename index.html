@@ -209,7 +209,13 @@ button.sm{padding:6px 12px;min-height:36px;font-size:14px}
 </main>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="config.js"></script>
+<script>
+// Connexion à Supabase (clé publishable : peut être publique ; ne jamais mettre une clé sb_secret_ ici)
+window.STOCK_CONFIG = {
+  SUPABASE_URL: "https://lmctsgrjcomdrytdifzq.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_GcnDwSEu6hWyoVmbh2vJJA_qXnfFN4T"
+};
+</script>
 
 <script>
 {
@@ -408,7 +414,8 @@ $('#fLogin').addEventListener('submit',async ev=>{ev.preventDefault();const f=ev
 $('#logout').addEventListener('click',async()=>{await sb.auth.signOut();ecranConnexion()});
 (async()=>{
   const C=window.STOCK_CONFIG||{};
-  if(!window.supabase||!C.SUPABASE_URL||C.SUPABASE_URL.includes('XXXX')){$('#login').hidden=false;$('#loginErr').textContent='Configuration manquante : complétez le fichier config.js.';return}
+  if(!window.supabase){$('#login').hidden=false;$('#loginErr').textContent='La bibliothèque Supabase ne s\'est pas chargée. Vérifiez la connexion internet et rechargez la page.';return}
+  if(!C.SUPABASE_URL||C.SUPABASE_URL.includes('XXXX')){$('#login').hidden=false;$('#loginErr').textContent='Configuration manquante (adresse ou clé Supabase).';return}
   sb=window.supabase.createClient(C.SUPABASE_URL,C.SUPABASE_ANON_KEY);
   const {data:{session}}=await sb.auth.getSession();
   if(session)demarrer(session);else ecranConnexion();
